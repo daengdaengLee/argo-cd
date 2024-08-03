@@ -29,17 +29,18 @@ import (
 
 type MetricsServer struct {
 	*http.Server
-	syncCounter             *prometheus.CounterVec
-	kubectlExecCounter      *prometheus.CounterVec
-	kubectlExecPendingGauge *prometheus.GaugeVec
-	k8sRequestCounter       *prometheus.CounterVec
-	clusterEventsCounter    *prometheus.CounterVec
-	redisRequestCounter     *prometheus.CounterVec
-	reconcileHistogram      *prometheus.HistogramVec
-	redisRequestHistogram   *prometheus.HistogramVec
-	registry                *prometheus.Registry
-	hostname                string
-	cron                    *cron.Cron
+	syncCounter                         *prometheus.CounterVec
+	kubectlExecCounter                  *prometheus.CounterVec
+	kubectlExecPendingGauge             *prometheus.GaugeVec
+	k8sRequestCounter                   *prometheus.CounterVec
+	clusterEventsCounter                *prometheus.CounterVec
+	redisRequestCounter                 *prometheus.CounterVec
+	reconcileHistogram                  *prometheus.HistogramVec
+	redisRequestHistogram               *prometheus.HistogramVec
+	gitCredsGetUserInfoRequestHistogram *prometheus.HistogramVec
+	registry                            *prometheus.Registry
+	hostname                            string
+	cron                                *cron.Cron
 }
 
 const (
@@ -141,6 +142,16 @@ var (
 		},
 		[]string{"hostname", "initiator"},
 	)
+
+	// @TODO
+	gitCredsGetUserInfoRequestHistogram = prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "argocd_redis_request_duration",
+			Help:    "Redis requests duration.",
+			Buckets: []float64{0.01, 0.05, 0.10, 0.25, .5, 1},
+		},
+		[]string{"hostname", "initiator"},
+	)
 )
 
 // NewMetricsServer returns a new prometheus server which collects application metrics
@@ -180,6 +191,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(clusterEventsCounter)
 	registry.MustRegister(redisRequestCounter)
 	registry.MustRegister(redisRequestHistogram)
+	registry.MustRegister(gitCredsGetUserInfoRequestHistogram)
 
 	return &MetricsServer{
 		registry: registry,
@@ -187,15 +199,16 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 			Addr:    addr,
 			Handler: mux,
 		},
-		syncCounter:             syncCounter,
-		k8sRequestCounter:       k8sRequestCounter,
-		kubectlExecCounter:      kubectlExecCounter,
-		kubectlExecPendingGauge: kubectlExecPendingGauge,
-		reconcileHistogram:      reconcileHistogram,
-		clusterEventsCounter:    clusterEventsCounter,
-		redisRequestCounter:     redisRequestCounter,
-		redisRequestHistogram:   redisRequestHistogram,
-		hostname:                hostname,
+		syncCounter:                         syncCounter,
+		k8sRequestCounter:                   k8sRequestCounter,
+		kubectlExecCounter:                  kubectlExecCounter,
+		kubectlExecPendingGauge:             kubectlExecPendingGauge,
+		reconcileHistogram:                  reconcileHistogram,
+		clusterEventsCounter:                clusterEventsCounter,
+		redisRequestCounter:                 redisRequestCounter,
+		redisRequestHistogram:               redisRequestHistogram,
+		gitCredsGetUserInfoRequestHistogram: gitCredsGetUserInfoRequestHistogram,
+		hostname:                            hostname,
 		// This cron is used to expire the metrics cache.
 		// Currently clearing the metrics cache is logging and deleting from the map
 		// so there is no possibility of panic, but we will add a chain to keep robfig/cron v1 behavior.
