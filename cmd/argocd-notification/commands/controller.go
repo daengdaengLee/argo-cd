@@ -1,10 +1,14 @@
 package commands
 
 import (
+	"context"
 	"fmt"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
+	"sync"
+	"syscall"
 
 	"github.com/argoproj/argo-cd/v2/common"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
@@ -62,7 +66,8 @@ func NewCommand() *cobra.Command {
 		Use:   "controller",
 		Short: "Starts Argo CD Notifications controller",
 		RunE: func(c *cobra.Command, args []string) error {
-			ctx := c.Context()
+			ctx, cancel := context.WithCancel(c.Context())
+			defer cancel()
 
 			vers := common.GetVersion()
 			namespace, _, err := clientConfig.Namespace()
@@ -147,7 +152,26 @@ func NewCommand() *cobra.Command {
 			}
 
 			go ctrl.Run(ctx, processorsCount)
-			<-ctx.Done()
+
+			// Graceful shutdown code adapted from https://gist.github.com/embano1/e0bf49d24f1cdd07cffad93097c04f0a
+			sigCh := make(chan os.Signal, 1)
+			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+			wg := sync.WaitGroup{}
+
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				select {
+				case <-ctx.Done():
+					return
+				case s := <-sigCh:
+					log.Printf("got signal %v, attempting graceful shutdown", s)
+					cancel()
+				}
+			}()
+
+			wg.Wait()
+
 			return nil
 		},
 	}
