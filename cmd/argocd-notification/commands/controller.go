@@ -161,13 +161,9 @@ func NewCommand() *cobra.Command {
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
-				select {
-				case <-ctx.Done():
-					return
-				case s := <-sigCh:
-					log.Printf("got signal %v, attempting graceful shutdown", s)
-					cancel()
-				}
+				s := <-sigCh
+				log.Printf("got signal %v, attempting graceful shutdown", s)
+				cancel()
 			}()
 
 			wg.Wait()
