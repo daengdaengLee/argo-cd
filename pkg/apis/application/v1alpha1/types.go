@@ -647,8 +647,11 @@ type ApplicationSourceKustomize struct {
 	NameSuffix string `json:"nameSuffix,omitempty" protobuf:"bytes,2,opt,name=nameSuffix"`
 	// Images is a list of Kustomize image override specifications
 	Images KustomizeImages `json:"images,omitempty" protobuf:"bytes,3,opt,name=images"`
-	// CommonLabels is a list of additional labels to add to rendered manifests
-	CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
+	// CommonLabels is a list of additional labels to add to rendered manifests (deprecated, use Labels)
+	// @TODO-22523
+	//CommonLabels map[string]string `json:"commonLabels,omitempty" protobuf:"bytes,4,opt,name=commonLabels"`
+	// Labels is a list of additional labels to add to rendered manifests
+	Labels KustomizeLabels `json:"labels,omitempty" protobuf:"bytes,19,opt,name=labels"`
 	// Version controls which version of Kustomize to use for rendering manifests
 	Version string `json:"version,omitempty" protobuf:"bytes,5,opt,name=version"`
 	// CommonAnnotations is a list of additional annotations to add to rendered manifests
@@ -741,6 +744,14 @@ func (p *KustomizePatch) Equals(o KustomizePatch) bool {
 		reflect.DeepEqual(p.Options, o.Options)
 }
 
+type KustomizeLabel struct {
+	IncludeTemplates bool              `json:"includeTemplates,omitempty" yaml:"includeTemplates,omitempty" protobuf:"bytes,1,opt,name=includeTemplates"`
+	IncludeSelectors bool              `json:"includeSelectors,omitempty" yaml:"includeSelectors,omitempty" protobuf:"bytes,2,opt,name=includeSelectors"`
+	Pairs            map[string]string `json:"pairs,omitempty" yaml:"pairs,omitempty" protobuf:"bytes,3,opt,name=pairs"`
+}
+
+type KustomizeLabels []KustomizeLabel
+
 type KustomizeSelector struct {
 	KustomizeResId     `json:",inline,omitempty" yaml:",inline,omitempty" protobuf:"bytes,1,opt,name=resId"`
 	AnnotationSelector string `json:"annotationSelector,omitempty" yaml:"annotationSelector,omitempty" protobuf:"bytes,2,opt,name=annotationSelector"`
@@ -762,7 +773,9 @@ type KustomizeGvk struct {
 // AllowsConcurrentProcessing returns true if multiple processes can run Kustomize builds on the same source at the same time
 func (k *ApplicationSourceKustomize) AllowsConcurrentProcessing() bool {
 	return len(k.Images) == 0 &&
-		len(k.CommonLabels) == 0 &&
+		// @TODO-22523
+		//len(k.CommonLabels) == 0 &&
+		len(k.Labels) == 0 &&
 		len(k.CommonAnnotations) == 0 &&
 		k.NamePrefix == "" &&
 		k.Namespace == "" &&
@@ -780,7 +793,9 @@ func (k *ApplicationSourceKustomize) IsZero() bool {
 			k.Namespace == "" &&
 			len(k.Images) == 0 &&
 			len(k.Replicas) == 0 &&
-			len(k.CommonLabels) == 0 &&
+			// @TODO-22523
+			//len(k.CommonLabels) == 0 &&
+			len(k.Labels) == 0 &&
 			len(k.CommonAnnotations) == 0 &&
 			len(k.Patches) == 0 &&
 			len(k.Components) == 0 &&
